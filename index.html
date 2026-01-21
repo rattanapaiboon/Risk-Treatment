@@ -58,12 +58,12 @@
 
     <main class="max-w-5xl mx-auto px-4 py-8 space-y-10">
         
-        <!-- ฟอร์มบันทึกข้อมูล (บันทึกลงคอลัมน์ A-E) -->
+        <!-- ฟอร์มบันทึกข้อมูล -->
         <section class="bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200/60 border border-slate-100 overflow-hidden">
             <div class="p-6 sm:p-12">
                 <div class="mb-10 border-l-4 border-indigo-600 pl-5">
                     <h2 class="text-2xl font-black text-slate-800 tracking-tight">แบบฟอร์มรายงานความเสี่ยง</h2>
-                    <p class="text-slate-500 text-sm mt-1">กรุณากรอกข้อมูลให้ครบทุกช่องเพื่อบันทึกลงในฐานข้อมูล</p>
+                    <p class="text-slate-500 text-sm mt-1">บันทึกลงคอลัมน์ A-E (วันที่, หน่วยงาน, รายละเอียด, ไฟล์, คะแนน)</p>
                 </div>
 
                 <form id="riskForm" class="space-y-10">
@@ -146,7 +146,6 @@
                         </div>
                     </div>
 
-                    <!-- ปุ่มส่งข้อมูล -->
                     <div class="pt-6">
                         <button type="submit" id="submitBtn" class="w-full bg-slate-900 text-white font-black py-6 rounded-[1.5rem] shadow-2xl hover:bg-indigo-600 transition-all active:scale-[0.98] text-lg tracking-wide">
                             บันทึกข้อมูลลง GOOGLE SHEETS
@@ -156,17 +155,13 @@
             </div>
         </section>
 
-        <!-- แสดงผลหน้าตาราง Google Sheet -->
+        <!-- Preview Section -->
         <section class="space-y-6">
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-4">
                 <div class="flex items-center gap-3">
                     <span class="w-2 h-8 bg-indigo-600 rounded-full"></span>
                     <h2 class="text-2xl font-black text-slate-800 tracking-tight">ตรวจสอบฐานข้อมูล (Preview)</h2>
                 </div>
-                <a href="https://docs.google.com/spreadsheets/d/1XXCHaWbKmS68xKOhpoenAqTtRxiBpkcVWQtftWciFxg/edit" target="_blank" class="bg-white text-indigo-600 border border-slate-200 px-5 py-2 rounded-full text-sm font-bold hover:bg-slate-50 transition-colors flex items-center gap-2 shadow-sm">
-                    ดูไฟล์ต้นฉบับ
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" /><path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" /></svg>
-                </a>
             </div>
             
             <div class="bg-white p-3 rounded-[2rem] shadow-xl border border-slate-100">
@@ -186,13 +181,12 @@
             </div>
             <div>
                 <p class="font-black text-lg leading-tight">บันทึกสำเร็จ!</p>
-                <p class="text-xs text-slate-400">ข้อมูลของคุณถูกส่งไปยังคอลัมน์ A-E แล้ว</p>
+                <p class="text-xs text-slate-400">ข้อมูลถูกส่งไปที่ ชีต1 แล้ว</p>
             </div>
         </div>
     </div>
 
     <script>
-        // --- การตั้งค่า Google Apps Script ---
         const scriptURL = 'https://script.google.com/macros/s/AKfycbyBVS6Eqjpon-nDphI0FSJXsr1CVRKE4DSIJV4EAQo6eQ2TDGm8K6bp_X7Ku1ebq1k/exec'; 
 
         const dateInput = document.getElementById('incidentDate');
@@ -221,16 +215,11 @@
         const submitBtn = document.getElementById('submitBtn');
         const toast = document.getElementById('toast');
 
-        form.addEventListener('submit', (e) => {
+        form.addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            if (!scriptURL) {
-                alert('โปรดใส่ scriptURL ในโค้ดก่อนทำการส่งข้อมูลจริง');
-                return;
-            }
-
             submitBtn.disabled = true;
-            submitBtn.textContent = "กำลังบันทึกลงคอลัมน์ A-E...";
+            submitBtn.textContent = "กำลังประมวลผลไฟล์และส่งข้อมูล...";
             submitBtn.classList.add('opacity-50', 'animate-pulse');
 
             const file = fileInput.files[0];
@@ -238,28 +227,37 @@
 
             reader.onload = function(event) {
                 const base64Data = event.target.result.split(',')[1];
-                const params = new URLSearchParams();
                 
-                params.append('timestamp', document.getElementById('incidentDate').value);
-                params.append('department', document.getElementById('department').value);
-                params.append('details', document.getElementById('details').value);
-                params.append('riskScore', form.querySelector('input[name="riskScore"]:checked').value);
-                params.append('fileData', base64Data);
-                params.append('fileName', file.name);
-                params.append('fileType', file.type);
+                // ใช้เทคนิคส่งผ่าน POST แบบปกติ
+                const dataToSend = {
+                    timestamp: document.getElementById('incidentDate').value,
+                    department: document.getElementById('department').value,
+                    details: document.getElementById('details').value,
+                    riskScore: form.querySelector('input[name="riskScore"]:checked').value,
+                    fileData: base64Data,
+                    fileName: file.name,
+                    fileType: file.type
+                };
+
+                // ส่งข้อมูลด้วย fetch โดยใช้ URLSearchParams เพื่อให้ Apps Script รับ parameter ได้ง่าย
+                const searchParams = new URLSearchParams();
+                for (const key in dataToSend) {
+                    searchParams.append(key, dataToSend[key]);
+                }
 
                 fetch(scriptURL, { 
                     method: 'POST', 
-                    mode: 'no-cors', 
+                    mode: 'no-cors', // Apps Script ต้องใช้ mode นี้
+                    cache: 'no-cache',
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: params
+                    body: searchParams
                 })
                 .then(() => {
                     handleSuccess();
                 })
                 .catch(error => {
                     console.error('Error!', error.message);
-                    alert('เกิดข้อผิดพลาดในการส่งข้อมูล');
+                    alert('เกิดข้อผิดพลาดในการเชื่อมต่อ');
                     resetBtn();
                 });
             };
